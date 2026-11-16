@@ -1,0 +1,31 @@
+{
+  "name": "downme",
+  "version": "1.0.0",
+  "description": "Personal Apple-minimalist media extraction service and PWA",
+  "type": "module",
+  "scripts": {
+    "start": "uv run python run_app.py",
+    "dev": "uv run uvicorn server.main:app --host 0.0.0.0 --port 3000 --reload",
+    "server": "uv run python run_app.py",
+    "build": "node scripts/build.mjs",
+    "deploy": "node scripts/build.mjs && npx wrangler pages deploy dist --project-name=downme --force",
+    "test": "node --test tests/e2e/*.spec.js",
+    "test:maintenance": "node scripts/test-maintenance.mjs --mock",
+    "test:maintenance:live": "node scripts/test-maintenance.mjs --live",
+    "test:e2e": "node --test tests/e2e/*.spec.js",
+    "test:all": "node scripts/test-maintenance.mjs --mock && node --test tests/e2e/*.spec.js",
+    "update:extractors": "uv run python -c \"import asyncio; from server.services.updater_service import updater_service; asyncio.run(updater_service.update_ytdlp())\""
+  },
+  "keywords": [
+    "media-downloader",
+    "pwa",
+    "youtube",
+    "facebook",
+    "tiktok",
+    "pinterest",
+    "apple-design",
+    "thmanyah"
+  ],
+  "author": "DownMe",
+  "license": "MIT"
+}

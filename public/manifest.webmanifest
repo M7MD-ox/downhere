@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "downhere — Media Downloader",
+  "short_name": "downhere",
+  "description": "Minimalist, Apple-style media downloader for YouTube, Facebook, TikTok, and Pinterest.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "utilities",
+    "multimedia",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "YouTube Downloader",
+      "short_name": "YouTube",
+      "description": "Download 1080p video or high-fidelity audio from YouTube",
+      "url": "/?platform=youtube",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "TikTok Downloader",
+      "short_name": "TikTok",
+      "description": "Download watermark-free video and photo albums from TikTok",
+      "url": "/?platform=tiktok",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pinterest Downloader",
+      "short_name": "Pinterest",
+      "description": "Download pins, photos, videos, and GIFs from Pinterest",
+      "url": "/?platform=pinterest",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Facebook Downloader",
+      "short_name": "Facebook",
+      "description": "Download HD videos and Reels from Facebook",
+      "url": "/?platform=facebook",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

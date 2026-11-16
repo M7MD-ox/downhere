@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>downhere</title>
+  <meta name="description" content="Minimalist universal media downloader.">
+
+  <!-- Apple & PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="downhere">
+  <meta name="theme-color" content="#000000">
+
+  <!-- Icons & Favicon -->
+  <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <!-- Preload Local Typeface Fonts -->
+  <link rel="preload" href="/fonts/Kracken-BLz2G.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="/fonts/thmanyahsans-Regular.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preload" href="/fonts/thmanyahsans-Bold.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preload" href="/fonts/thmanyahsans-Medium.otf" as="font" type="font/otf" crossorigin>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/thmanyah-typography.css">
+  <link rel="stylesheet" href="/css/apple-theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <!-- Slow Ambient Blue Gradient Orb -->
+  <div class="ambient-blue-orb" aria-hidden="true"></div>
+
+  <!-- Dynamic Island Auto-Clipboard Detection Card -->
+  <aside id="clipboard-banner" class="dynamic-island-container" aria-label="Clipboard link notification">
+    <div class="dynamic-island-card">
+      <div class="island-content">
+        <div id="clipboard-icon" class="island-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </div>
+        <div class="island-text">
+          <div class="island-title">Link Detected</div>
+          <div id="clipboard-url" class="island-url">https://...</div>
+        </div>
+      </div>
+      <div class="island-actions">
+        <button id="clipboard-download-btn" class="action-pill-btn btn-primary island-btn" type="button">Download</button>
+        <button id="clipboard-dismiss-btn" class="icon-clear-btn" type="button" aria-label="Dismiss">✕</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Drag & Drop Full-Viewport Overlay -->
+  <div id="drag-drop-overlay" class="drag-drop-overlay" aria-hidden="true">
+    <div class="drag-drop-content">
+      <svg class="drag-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      <h2 class="drag-drop-title">Drop link to download</h2>
+      <p class="drag-drop-subtitle">YouTube, Instagram, TikTok, Facebook, X, or Pinterest</p>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div class="app-container">
+
+    <!-- Spotlight Search Input Bar -->
+    <section class="spotlight-wrapper">
+      <div id="spotlight-bar" class="spotlight-bar">
+        <div id="platform-icon" class="spotlight-platform-icon platform-generic" aria-label="Detected platform">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </div>
+
+        <input
+          id="url-input"
+          class="spotlight-input"
+          type="url"
+          placeholder="Paste any link"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+          aria-label="Media URL"
+        />
+
+        <div class="spotlight-actions">
+          <button id="clear-btn" class="icon-clear-btn hidden" type="button" aria-label="Clear link input">✕</button>
+          <button id="extract-btn" class="action-pill-btn btn-primary" type="button">Extract</button>
+        </div>
+      </div>
+
+      <!-- Spotlight Live Status & Error Feedback Banner -->
+      <div id="spotlight-status" class="spotlight-status hidden" role="status" aria-live="polite"></div>
+
+      <!-- Recent Extractions History (LocalStorage) -->
+      <div id="recent-history-section" class="recent-history-section hidden" aria-label="Recent links">
+        <div class="recent-history-header">
+          <span class="recent-history-label">Recent</span>
+          <button id="recent-clear-btn" class="recent-clear-btn" type="button">Clear</button>
+        </div>
+        <div id="recent-history-pills" class="recent-history-pills"></div>
+      </div>
+    </section>
+
+    <!-- Media Preview Card (Instant In-App Player) -->
+    <section id="media-preview-card" class="media-preview-card glass-panel hidden">
+      <!-- Media Header Info -->
+      <div class="preview-header">
+        <div style="flex: 1; min-width: 0;">
+          <div class="preview-badge-row">
+            <span id="preview-platform-badge" class="platform-pill-badge youtube">YouTube</span>
+            <span id="preview-duration-badge" class="duration-pill-badge">03:45</span>
+          </div>
+          <h2 id="preview-title" class="preview-title">Media Title Placeholder</h2>
+          <div id="preview-author" class="preview-author">Author Name</div>
+        </div>
+      </div>
+
+      <!-- Instant In-App Media Player Container -->
+      <div class="player-container">
+        <!-- Video Player -->
+        <div id="preview-video-container" class="preview-video-wrapper">
+          <video id="preview-video" controls playsinline preload="metadata"></video>
+        </div>
+
+        <!-- Audio Waveform Player -->
+        <div id="preview-audio-container" class="preview-audio-wrapper hidden">
+          <img id="audio-preview-thumb" class="audio-thumb-art" src="/icons/icon-192x192.png" alt="Cover art">
+          <div class="audio-player-controls">
+            <div class="audio-play-row">
+              <button id="audio-play-toggle" class="audio-play-toggle-btn" type="button" aria-label="Play audio">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <div style="flex: 1;">
+                <input id="audio-seek-slider" class="audio-seek-slider" type="range" min="0" max="100" value="0">
+              </div>
+            </div>
+            <div class="audio-time-row">
+              <span id="audio-current-time">00:00</span>
+              <span id="audio-duration">00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Photo Carousel / Lightbox -->
+        <div id="preview-photo-container" class="preview-photo-wrapper hidden">
+          <img id="preview-photo-img" src="" alt="Photo preview">
+          <button id="carousel-prev" class="carousel-nav-btn carousel-prev hidden" type="button" aria-label="Previous photo">‹</button>
+          <button id="carousel-next" class="carousel-nav-btn carousel-next hidden" type="button" aria-label="Next photo">›</button>
+          <div id="carousel-counter" class="carousel-counter-pill hidden">1 / 1</div>
+        </div>
+      </div>
+
+      <!-- Controls & Download Configuration -->
+      <div class="controls-section">
+        <!-- Format Tabs (Apple Segmented Control) -->
+        <div>
+          <div class="control-group-title">Media Format</div>
+          <div class="segmented-control" role="tablist">
+            <button class="segment-pill format-tab active" data-type="video" role="tab" type="button">Video (MP4)</button>
+            <button class="segment-pill format-tab" data-type="audio" role="tab" type="button">Audio (MP3)</button>
+            <button class="segment-pill format-tab" data-type="photo" role="tab" type="button">Photos</button>
+            <button class="segment-pill format-tab" data-type="subtitles" role="tab" type="button">Subtitles</button>
+          </div>
+        </div>
+
+        <!-- Video Quality Options (Populated dynamically from actual available streams) -->
+        <div id="video-quality-section">
+          <div class="control-group-title">Video Resolution</div>
+          <div id="video-quality-pills" class="pills-grid"></div>
+        </div>
+
+        <!-- Audio Quality Options (320kbps MP3 / M4A) -->
+        <div id="audio-quality-section" class="hidden">
+          <div class="control-group-title">Audio Quality</div>
+          <div id="audio-quality-pills" class="pills-grid">
+            <button class="quality-pill active" data-format-id="mp3-320" type="button">MP3 320 kbps</button>
+            <button class="quality-pill" data-format-id="m4a-aac" type="button">M4A / AAC (Apple)</button>
+          </div>
+          <label class="option-toggle-row">
+            <input id="embed-cover-checkbox" type="checkbox" checked>
+            <span class="option-toggle-label">Embed High-Res Cover Art & Metadata</span>
+          </label>
+        </div>
+
+        <!-- Subtitles Language Options -->
+        <div id="subtitles-section" class="hidden">
+          <div class="control-group-title">Subtitle Track</div>
+          <div class="subtitles-select-wrapper">
+            <select id="subtitles-select" class="apple-select">
+              <option value="">None / Off</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Optional Trimmer Toggle (Hidden by default) -->
+        <button id="trim-toggle-btn" class="trimmer-toggle-btn hidden" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+          </svg>
+          <span>Trim Clip</span>
+        </button>
+
+        <!-- Video & Audio Trimmer Tool -->
+        <div id="trimmer-container" class="trimmer-card hidden">
+          <div class="trimmer-header">
+            <div class="trimmer-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+                <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+                <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+                <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+              </svg>
+              <span>Smart Clip Trimmer</span>
+            </div>
+            <div class="trimmer-timecodes">
+              <span id="trim-start-time">00:00</span> — <span id="trim-end-time">00:00</span>
+            </div>
+          </div>
+
+          <div class="dual-slider-container">
+            <div class="slider-track"></div>
+            <div id="trim-slider-highlight" class="slider-highlight"></div>
+            <input id="trim-start-range" class="slider-range-input" type="range" min="0" max="100" value="0">
+            <input id="trim-end-range" class="slider-range-input" type="range" min="0" max="100" value="100">
+          </div>
+
+          <div class="trimmer-actions">
+            <div id="trim-duration-display" class="trimmer-summary">Selected: 00:00</div>
+            <button id="preview-trim-btn" class="trimmer-preview-btn" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Preview Trim
+            </button>
+          </div>
+        </div>
+
+        <!-- Primary Action Trigger -->
+        <div class="download-cta-section">
+          <button id="download-primary-btn" class="download-primary-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Download</span>
+          </button>
+          <div class="download-progress-container">
+            <div id="download-progress-bar" class="download-progress-bar"></div>
+          </div>
+          <div id="status-message" class="status-message" role="status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Multi-Photo Album Gallery (Batch ZIP) -->
+    <section id="album-gallery-container" class="album-gallery-wrapper glass-panel hidden" style="padding: 20px;">
+      <div class="album-gallery-header">
+        <h3 class="album-gallery-title">Album Photos & Slideshow</h3>
+        <button id="select-all-photos-btn" class="action-pill-btn btn-secondary" style="height: 32px; padding: 0 12px; font-size: 0.75rem;" type="button">
+          Select All
+        </button>
+      </div>
+
+      <div id="album-grid" class="album-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <button id="download-album-zip-btn" class="download-primary-btn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/>
+          <rect x="1" y="3" width="22" height="5"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        <span>Download All as ZIP</span>
+      </button>
+    </section>
+
+  </div>
+
+  <!-- Application ES Modules -->
+  <script type="module" src="/js/api.js"></script>
+  <script type="module" src="/js/preview.js"></script>
+  <script type="module" src="/js/trimmer.js"></script>
+  <script type="module" src="/js/dragdrop.js"></script>
+  <script type="module" src="/js/share-target.js"></script>
+  <script type="module" src="/js/clipboard.js"></script>
+  <script type="module" src="/js/app.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((registration) => {
+            console.log('[DownMe] Service Worker registered with scope:', registration.scope);
+          })
+          .catch((error) => {
+            console.warn('[DownMe] Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>

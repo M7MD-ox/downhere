@@ -1,0 +1,30 @@
+{
+  "operational": {
+    "status": "healthy",
+    "timestamp": "2026-10-31T12:00:00Z",
+    "version": "2026.10.26",
+    "platforms": {
+      "youtube": { "status": "operational", "latencyMs": 340, "lastChecked": "2026-10-31T11:58:10Z" },
+      "facebook": { "status": "operational", "latencyMs": 480, "lastChecked": "2026-10-31T11:58:11Z" },
+      "tiktok": { "status": "operational", "latencyMs": 290, "lastChecked": "2026-10-31T11:58:12Z" },
+      "pinterest": { "status": "operational", "latencyMs": 210, "lastChecked": "2026-10-31T11:58:13Z" }
+    }
+  },
+  "degraded": {
+    "status": "degraded",
+    "timestamp": "2026-10-31T12:05:00Z",
+    "version": "2026.10.26",
+    "platforms": {
+      "youtube": { "status": "operational", "latencyMs": 350, "lastChecked": "2026-10-31T12:04:10Z" },
+      "facebook": { "status": "degraded", "latencyMs": 4200, "lastChecked": "2026-10-31T12:04:11Z" },
+      "tiktok": { "status": "operational", "latencyMs": 280, "lastChecked": "2026-10-31T12:04:12Z" },
+      "pinterest": { "status": "operational", "latencyMs": 220, "lastChecked": "2026-10-31T12:04:13Z" }
+    }
+  },
+  "updateResponse": {
+    "success": true,
+    "previousVersion": "2026.10.26",
+    "currentVersion": "2026.10.26",
+    "message": "yt-dlp is up to date"
+  }
+}

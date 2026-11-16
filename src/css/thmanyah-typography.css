@@ -1,0 +1,166 @@
+/**
+ * Thmanyah Sans Typography System
+ * Bilingual (Arabic & English) typography for DownMe
+ * Configured with exact OpenType weights, Apple fallbacks, and font-display: swap
+ */
+
+/* Thmanyah Sans - Light (300) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: local('thmanyah sans Light'),
+       local('thmanyahsans-Light'),
+       url('/fonts/thmanyahsans-Light.otf') format('opentype');
+}
+
+/* Thmanyah Sans - Regular (400) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('thmanyah sans Regular'),
+       local('thmanyah sans'),
+       local('thmanyahsans-Regular'),
+       url('/fonts/thmanyahsans-Regular.otf') format('opentype');
+}
+
+/* Thmanyah Sans - Medium (500) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local('thmanyah sans Medium'),
+       local('thmanyah sans Med'),
+       local('thmanyahsans-Medium'),
+       url('/fonts/thmanyahsans-Medium.otf') format('opentype');
+}
+
+/* Thmanyah Sans - Bold (700) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('thmanyah sans Bold'),
+       local('thmanyahsans-Bold'),
+       url('/fonts/thmanyahsans-Bold.otf') format('opentype');
+}
+
+/* Thmanyah Sans - Black (900) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: local('thmanyah sans Black'),
+       local('thmanyahsans-Black'),
+       url('/fonts/thmanyahsans-Black.otf') format('opentype');
+}
+
+/* Global Font Stacks */
+:root {
+  --font-sans: 'Thmanyah Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+               'SF Pro AR', 'SF Pro Display', system-ui, 'Segoe UI',
+               Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+}
+
+/* Typographic Scale & Hierarchy */
+.text-display {
+  font-family: var(--font-sans);
+  font-weight: 900;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.text-title-1 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.text-title-2 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.text-title-3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.1875rem;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+
+.text-headline {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+}
+
+.text-callout {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.text-subhead {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.text-caption {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Bilingual Arabic/English Layout Optimizations */
+[dir="rtl"] {
+  letter-spacing: 0 !important;
+}
+
+[dir="rtl"] .text-display,
+[dir="rtl"] .text-title-1,
+[dir="rtl"] .text-title-2 {
+  line-height: 1.35;
+}
+
+/* Text Smoothing */
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

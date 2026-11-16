@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#181822"/>
+      <stop offset="100%" stop-color="#08080c"/>
+    </linearGradient>
+    <radialGradient id="spotlight" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#0a84ff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0a84ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0a84ff"/>
+      <stop offset="100%" stop-color="#00f2fe"/>
+    </linearGradient>
+  </defs>
+  <!-- Background squircle -->
+  <rect x="8" y="8" width="496" height="496" rx="110" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
+  <circle cx="256" cy="220" r="200" fill="url(#spotlight)"/>
+  
+  <!-- Arrow stem -->
+  <rect x="240" y="140" width="32" height="130" rx="16" fill="#ffffff"/>
+  
+  <!-- Arrow head -->
+  <path d="M256 350 L176 260 L204 242 L256 294 L308 242 L336 260 Z" fill="#ffffff"/>
+  
+  <!-- Media tray shelf -->
+  <rect x="126" y="370" width="260" height="22" rx="11" fill="url(#trayGrad)"/>
+</svg>

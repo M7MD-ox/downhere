@@ -1,0 +1,41 @@
+{
+  "videoPost": {
+    "id": "7106594312292453678",
+    "title": "Creative video editing tips & tricks #tutorial #creative",
+    "author": "creativestudio",
+    "uploader": "creativestudio",
+    "duration": 28,
+    "thumbnail": "https://p16-sign-va.tiktokcdn.com/tos-maliva-p-0068/mock_tt_thumb.jpeg",
+    "platform": "tiktok",
+    "mediaType": "video",
+    "isWatermarkFree": true,
+    "formats": {
+      "video": [
+        { "formatId": "nowatermark", "label": "HD MP4 (No Watermark)", "ext": "mp4", "height": 1080, "isDefault": true, "filesize": 14200000 }
+      ],
+      "audio": [
+        { "formatId": "mp3-original", "label": "Original Sound (MP3)", "bitrate": 192, "ext": "mp3", "filesize": 680000 }
+      ]
+    },
+    "subtitles": [],
+    "sampleStreamUrl": "https://v16-webapp-prime.tiktokcdn.com/mock_tiktok_stream.mp4"
+  },
+  "albumPost": {
+    "id": "7106594312292459999",
+    "title": "Sunset photography in the mountains - 6 photo collection",
+    "author": "mountaintraveler",
+    "duration": 0,
+    "platform": "tiktok",
+    "mediaType": "album",
+    "thumbnail": "https://p16-sign-va.tiktokcdn.com/photo_01_thumb.jpg",
+    "canDownloadAsZip": true,
+    "items": [
+      { "index": 1, "url": "https://p16-sign-va.tiktokcdn.com/photo_01_full.jpg", "filename": "photo_01.jpg", "resolution": "1440x2560" },
+      { "index": 2, "url": "https://p16-sign-va.tiktokcdn.com/photo_02_full.jpg", "filename": "photo_02.jpg", "resolution": "1440x2560" },
+      { "index": 3, "url": "https://p16-sign-va.tiktokcdn.com/photo_03_full.jpg", "filename": "photo_03.jpg", "resolution": "1440x2560" },
+      { "index": 4, "url": "https://p16-sign-va.tiktokcdn.com/photo_04_full.jpg", "filename": "photo_04.jpg", "resolution": "1440x2560" },
+      { "index": 5, "url": "https://p16-sign-va.tiktokcdn.com/photo_05_full.jpg", "filename": "photo_05.jpg", "resolution": "1440x2560" },
+      { "index": 6, "url": "https://p16-sign-va.tiktokcdn.com/photo_06_full.jpg", "filename": "photo_06.jpg", "resolution": "1440x2560" }
+    ]
+  }
+}

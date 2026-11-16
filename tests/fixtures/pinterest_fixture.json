@@ -1,0 +1,43 @@
+{
+  "photoPin": {
+    "id": "993606736519694085",
+    "title": "Minimalist Warm Earth Tone Interior Architecture",
+    "author": "ArchitecturalAesthetics",
+    "platform": "pinterest",
+    "mediaType": "photo",
+    "thumbnail": "https://i.pinimg.com/736x/99/36/06/mock_pin_thumb.jpg",
+    "formats": {
+      "photo": [
+        { "formatId": "original", "label": "Original Quality (JPG)", "resolution": "3840x2880", "ext": "jpg", "isDefault": true, "filesize": 4200000, "url": "https://i.pinimg.com/originals/99/36/06/mock_pin_orig.jpg" },
+        { "formatId": "736x", "label": "High Quality (736px)", "resolution": "736x552", "ext": "jpg", "isDefault": false, "filesize": 620000, "url": "https://i.pinimg.com/736x/99/36/06/mock_pin_736.jpg" }
+      ]
+    }
+  },
+  "videoPin": {
+    "id": "882345678901234567",
+    "title": "Handmade Clay Pottery Wheel Timelapse",
+    "author": "CeramicsDaily",
+    "duration": 42,
+    "platform": "pinterest",
+    "mediaType": "video",
+    "thumbnail": "https://i.pinimg.com/videos/thumbnails/882345678901234567.jpg",
+    "formats": {
+      "video": [
+        { "formatId": "720p", "label": "HD 720p (MP4)", "resolution": "720x1280", "ext": "mp4", "isDefault": true, "filesize": 18400000, "url": "https://v.pinimg.com/videos/mc/720p/pottery.mp4" }
+      ]
+    }
+  },
+  "gifPin": {
+    "id": "771234567890123456",
+    "title": "Retro Pixel Art Cyberpunk City Rain Animation",
+    "author": "PixelArtist",
+    "platform": "pinterest",
+    "mediaType": "gif",
+    "thumbnail": "https://i.pinimg.com/originals/77/12/34/city_rain_thumb.png",
+    "formats": {
+      "gif": [
+        { "formatId": "animated-gif", "label": "Animated GIF (Looping)", "resolution": "800x600", "ext": "gif", "isDefault": true, "filesize": 5600000, "url": "https://i.pinimg.com/originals/77/12/34/city_rain.gif" }
+      ]
+    }
+  }
+}

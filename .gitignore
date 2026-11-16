@@ -1,0 +1,11 @@
+.vercel
+.venv/
+__pycache__/
+*.pyc
+.wrangler/
+dist/
+node_modules/
+.env
+.env.*
+.agents/
+*.log

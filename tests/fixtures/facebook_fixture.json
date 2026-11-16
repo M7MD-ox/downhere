@@ -1,0 +1,22 @@
+{
+  "id": "10153231379946729",
+  "title": "Meta Connect Keynote - Next Generation Spatial Computing",
+  "author": "Meta",
+  "uploader": "Meta",
+  "duration": 98,
+  "thumbnail": "https://scontent.xx.fbcdn.net/v/t15.5256-10/mock_fb_thumb.jpg",
+  "platform": "facebook",
+  "mediaType": "video",
+  "formats": {
+    "video": [
+      { "formatId": "hd", "label": "HD 1080p (MP4)", "resolution": "1920x1080", "height": 1080, "ext": "mp4", "filesize": 45000000, "isDefault": true },
+      { "formatId": "sd", "label": "SD 720p (MP4)", "resolution": "1280x720", "height": 720, "ext": "mp4", "filesize": 22000000, "isDefault": false }
+    ],
+    "audio": [
+      { "formatId": "mp3-320", "label": "MP3 High Quality (320 kbps)", "bitrate": 320, "ext": "mp3", "hasCoverArt": true, "filesize": 3900000 },
+      { "formatId": "m4a-aac", "label": "M4A / AAC (Apple Native)", "bitrate": 160, "ext": "m4a", "hasCoverArt": true, "filesize": 1900000 }
+    ]
+  },
+  "subtitles": [],
+  "sampleStreamUrl": "https://video.faly1-1.fna.fbcdn.net/v/mock_fb_stream.mp4"
+}

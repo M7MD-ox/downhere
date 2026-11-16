@@ -1,0 +1,36 @@
+{
+  "id": "dQw4w9WgXcQ",
+  "title": "Rick Astley - Never Gonna Give You Up (Official Music Video)",
+  "author": "Rick Astley",
+  "uploader": "Rick Astley",
+  "channel": "Rick Astley",
+  "duration": 213,
+  "view_count": 1450000000,
+  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+  "thumbnails": [
+    { "id": "hqdefault", "url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", "width": 480, "height": 360 },
+    { "id": "maxresdefault", "url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", "width": 1920, "height": 1080 }
+  ],
+  "platform": "youtube",
+  "mediaType": "video",
+  "formats": {
+    "video": [
+      { "formatId": "2160p", "label": "4K Ultra HD (2160p)", "resolution": "3840x2160", "height": 2160, "ext": "mp4", "filesize": 485000000, "isDefault": false },
+      { "formatId": "1080p", "label": "1080p Full HD", "resolution": "1920x1080", "height": 1080, "ext": "mp4", "filesize": 124000000, "isDefault": true },
+      { "formatId": "720p", "label": "720p HD", "resolution": "1280x720", "height": 720, "ext": "mp4", "filesize": 62000000, "isDefault": false },
+      { "formatId": "480p", "label": "480p SD", "resolution": "854x480", "height": 480, "ext": "mp4", "filesize": 34000000, "isDefault": false },
+      { "formatId": "360p", "label": "360p", "resolution": "640x360", "height": 360, "ext": "mp4", "filesize": 21000000, "isDefault": false }
+    ],
+    "audio": [
+      { "formatId": "mp3-320", "label": "MP3 High Quality (320 kbps)", "bitrate": 320, "ext": "mp3", "hasCoverArt": true, "filesize": 8500000 },
+      { "formatId": "mp3-192", "label": "MP3 Standard (192 kbps)", "bitrate": 192, "ext": "mp3", "hasCoverArt": true, "filesize": 5100000 },
+      { "formatId": "m4a-aac", "label": "M4A / AAC (Apple Native)", "bitrate": 160, "ext": "m4a", "hasCoverArt": true, "filesize": 4200000 }
+    ]
+  },
+  "subtitles": [
+    { "lang": "en", "label": "English (United States)", "ext": "srt", "url": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=en&fmt=srt" },
+    { "lang": "ar", "label": "Arabic (العربية)", "ext": "srt", "url": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=ar&fmt=srt" },
+    { "lang": "fr", "label": "French (Français)", "ext": "vtt", "url": "https://www.youtube.com/api/timedtext?v=dQw4w9WgXcQ&lang=fr&fmt=vtt" }
+  ],
+  "sampleStreamUrl": "https://rr2---sn-4g5ednks.googlevideo.com/videoplayback?id=dQw4w9WgXcQ&itag=137&range=0-1024"
+}

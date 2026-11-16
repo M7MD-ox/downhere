@@ -1,0 +1,227 @@
+[
+  {
+    "category": "SSRF",
+    "test_id": "TC-ADV-SSRF-01",
+    "name": "Extract endpoint rejects loopback IP",
+    "is_safe": true,
+    "details": "Returned HTTP 400: SSRF blocked: loopback address '127.0.0.1' is not allowed",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "SSRF",
+    "test_id": "TC-ADV-SSRF-02",
+    "name": "Extract endpoint rejects AWS Metadata IP",
+    "is_safe": true,
+    "details": "Returned HTTP 400: SSRF blocked: IP 169.254.169.254 is a private, loopback, or metadata address",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "SSRF",
+    "test_id": "TC-ADV-SSRF-03",
+    "name": "ZIP endpoint rejects loopback IP",
+    "is_safe": true,
+    "details": "Status code HTTP 400",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "SSRF",
+    "test_id": "TC-ADV-SSRF-04",
+    "name": "ZIP endpoint blocks AWS Metadata IP",
+    "is_safe": true,
+    "details": "Status code HTTP 400",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "SSRF",
+    "test_id": "TC-ADV-SSRF-05",
+    "name": "ZIP endpoint rejects RFC 1918 private subnets",
+    "is_safe": true,
+    "details": "Status code HTTP 400",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Path Traversal",
+    "test_id": "TC-ADV-TRAV-01",
+    "name": "Path traversal to /etc/passwd is blocked",
+    "is_safe": true,
+    "details": "Static server safely refused /etc/passwd (returned SPA fallback index.html, no leak).",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Path Traversal",
+    "test_id": "TC-ADV-TRAV-02",
+    "name": "Windows path traversal ..\\..\\Windows\\win.ini is blocked",
+    "is_safe": true,
+    "details": "Static server safely refused win.ini (returned SPA fallback, no leak).",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Path Traversal",
+    "test_id": "TC-ADV-TRAV-03",
+    "name": "URL-encoded path traversal is blocked",
+    "is_safe": true,
+    "details": "URL-encoded traversal prevented from leaking sensitive files.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Path Traversal",
+    "test_id": "TC-ADV-TRAV-04",
+    "name": "Static path prefix check uses is_relative_to() for strict confinement",
+    "is_safe": true,
+    "details": "Code uses `path.is_relative_to(...)` ensuring sibling directories cannot bypass confinement.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-CON",
+    "name": "Filename sanitizer escaped Windows reserved name: 'CON.mp4'",
+    "is_safe": true,
+    "details": "Sanitized to '_CON.mp4' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-PRN",
+    "name": "Filename sanitizer escaped Windows reserved name: 'PRN.mp3'",
+    "is_safe": true,
+    "details": "Sanitized to '_PRN.mp3' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-AUX",
+    "name": "Filename sanitizer escaped Windows reserved name: 'AUX.jpg'",
+    "is_safe": true,
+    "details": "Sanitized to '_AUX.jpg' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-NUL",
+    "name": "Filename sanitizer escaped Windows reserved name: 'NUL.zip'",
+    "is_safe": true,
+    "details": "Sanitized to '_NUL.zip' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-COM1",
+    "name": "Filename sanitizer escaped Windows reserved name: 'COM1.mp4'",
+    "is_safe": true,
+    "details": "Sanitized to '_COM1.mp4' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-COM9",
+    "name": "Filename sanitizer escaped Windows reserved name: 'COM9.m4a'",
+    "is_safe": true,
+    "details": "Sanitized to '_COM9.m4a' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-LPT1",
+    "name": "Filename sanitizer escaped Windows reserved name: 'LPT1.pdf'",
+    "is_safe": true,
+    "details": "Sanitized to '_LPT1.pdf' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-AUX",
+    "name": "Filename sanitizer escaped Windows reserved name: 'aux.png'",
+    "is_safe": true,
+    "details": "Sanitized to '_aux.png' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Windows Reserved Names",
+    "test_id": "TC-ADV-WIN-NUL",
+    "name": "Filename sanitizer escaped Windows reserved name: 'nul.mp4'",
+    "is_safe": true,
+    "details": "Sanitized to '_nul.mp4' safely.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Trimmer",
+    "test_id": "TC-ADV-TRM-01",
+    "name": "Inverted trimmer timestamps rejected with HTTP 400",
+    "is_safe": true,
+    "details": "Server returned HTTP 400 Bad Request for inverted timestamps.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Trimmer",
+    "test_id": "TC-ADV-TRM-02",
+    "name": "Negative trimmer timestamps rejected with HTTP 400",
+    "is_safe": true,
+    "details": "Server returned HTTP 400 Bad Request.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Trimmer",
+    "test_id": "TC-ADV-TRM-03",
+    "name": "Alphabetical trimmer timestamps rejected with HTTP 400",
+    "is_safe": true,
+    "details": "Server returned HTTP 400 Bad Request.",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Zip Slip / Payload",
+    "test_id": "TC-ADV-ZIP-01",
+    "name": "ZIP item filenames sanitized against traversal",
+    "is_safe": true,
+    "details": "Filenames sanitized cleanly: ['evil.dll', 'evil.bat']",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Zip Slip / Payload",
+    "test_id": "TC-ADV-ZIP-02",
+    "name": "Server returned error when all items fail",
+    "is_safe": true,
+    "details": "Returned HTTP 404",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Zip Slip / Payload",
+    "test_id": "TC-ADV-EXT-01",
+    "name": "Null byte in media URL rejected with HTTP 400/422",
+    "is_safe": true,
+    "details": "Returned HTTP 400",
+    "payload": null,
+    "response_data": null
+  },
+  {
+    "category": "Zip Slip / Payload",
+    "test_id": "TC-ADV-EXT-02",
+    "name": "Massive 50KB URL rejected cleanly",
+    "is_safe": true,
+    "details": "Handled with HTTP 500 without server crash",
+    "payload": null,
+    "response_data": null
+  }
+]
