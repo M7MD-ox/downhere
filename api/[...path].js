@@ -354,13 +354,49 @@ async function extractYouTube(rawUrl) {
     });
   }
 
+async function fetchYouTubeSubtitlesFromWatch(videoId) {
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': BROWSER_UA,
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(7000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const m = html.match(/"captionTracks":(\[.*?\])(?:,"audioTracks"|,"translationLanguages"|,"defaultAudioTrackIndex")/);
+    if (!m) return [];
+    const tracks = JSON.parse(m[1]);
+    const seen = new Set();
+    const subs = [];
+    for (const t of tracks) {
+      const lang = t.languageCode;
+      if (!lang || seen.has(lang) || !t.baseUrl) continue;
+      seen.add(lang);
+      subs.push({
+        lang,
+        label: t.name?.simpleText || t.name?.runs?.[0]?.text || lang,
+        ext: 'srt',
+        url: t.baseUrl,
+      });
+    }
+    return subs;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchYouTubeCliptoFallback(rawUrl, videoId) {
-  const res = await fetch('https://www.clipto.com/api/youtube', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': BROWSER_UA },
-    body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}` }),
-    signal: AbortSignal.timeout(10000),
-  }).catch(() => null);
+  const [res, watchSubs] = await Promise.all([
+    fetch('https://www.clipto.com/api/youtube', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': BROWSER_UA },
+      body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}` }),
+      signal: AbortSignal.timeout(10000),
+    }).catch(() => null),
+    fetchYouTubeSubtitlesFromWatch(videoId),
+  ]);
   if (!res || !res.ok) return null;
   const data = await res.json().catch(() => null);
   if (!data?.success || !Array.isArray(data.medias) || data.medias.length === 0) return null;
@@ -453,8 +489,8 @@ async function fetchYouTubeCliptoFallback(rawUrl, videoId) {
     previewUrl,
     formats: { video: videoFormats, audio: audioFormats },
     photos: [],
-    subtitles: [],
-    capabilities: { canTrim: false, canSelectQuality: videoFormats.length > 1, hasSubtitles: false },
+    subtitles: watchSubs,
+    capabilities: { canTrim: false, canSelectQuality: videoFormats.length > 1, hasSubtitles: watchSubs.length > 0 },
   };
 }
 
@@ -467,6 +503,11 @@ async function fetchYouTubeCliptoFallback(rawUrl, videoId) {
       primary?.playabilityStatus?.reason ||
       (playStatus ? `YouTube status: ${playStatus}` : 'YouTube stream extraction blocked by upstream.');
     throw new Error(reason);
+  }
+
+  if (subtitles.length === 0) {
+    const watchSubs = await fetchYouTubeSubtitlesFromWatch(videoId);
+    subtitles.push(...watchSubs);
   }
 
   // Use same-origin proxy for YouTube preview so googlevideo IP lock works from any phone
@@ -906,6 +947,73 @@ function unescapeJsonString(raw) {
   }
 }
 
+async function fetchCliptoSocialFallback(rawUrl, platform) {
+  const res = await fetch('https://www.clipto.com/api/youtube', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': BROWSER_UA },
+    body: JSON.stringify({ url: rawUrl }),
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => null);
+  if (!res || !res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data?.success || !Array.isArray(data.medias) || data.medias.length === 0) return null;
+
+  const videos = data.medias.filter((m) => (m.type === 'video' || !m.type) && m.url && !/\.(?:jpg|jpeg|png|webp)(?:\?|$)/i.test(m.url));
+  const images = data.medias.filter((m) => m.type === 'image' && m.url);
+
+  if (videos.length > 0) {
+    const videoFormats = videos.map((v, idx) => ({
+      format_id: `clipto-${idx}`,
+      quality: v.quality || (idx === 0 ? 'HD' : 'SD'),
+      label: v.quality ? `${String(v.quality).toUpperCase()} (MP4)` : idx === 0 ? 'HD (MP4)' : 'SD (MP4)',
+      ext: 'mp4',
+      url: v.url,
+      ua: BROWSER_UA,
+      muxed: true,
+      default: idx === 0,
+    }));
+    return {
+      status: 'success',
+      platform,
+      type: 'video',
+      title: data.title || `${platform[0].toUpperCase() + platform.slice(1)} Video`,
+      author: data.author || platform[0].toUpperCase() + platform.slice(1),
+      thumbnail: data.thumbnail || '',
+      duration: data.duration ? Math.round(Number(data.duration) / (Number(data.duration) > 3600 ? 1000 : 1)) : null,
+      previewUrl: videoFormats[0].url,
+      formats: { video: videoFormats, audio: [] },
+      photos: [],
+      subtitles: [],
+      capabilities: { canTrim: false, canSelectQuality: videoFormats.length > 1, hasSubtitles: false },
+    };
+  }
+
+  if (images.length > 0) {
+    const photos = images.map((img, idx) => ({
+      index: idx,
+      url: img.url,
+      ext: 'jpg',
+      label: `Photo ${idx + 1}`,
+    }));
+    return {
+      status: 'success',
+      platform,
+      type: photos.length > 1 ? 'album' : 'photo',
+      title: data.title || `${platform[0].toUpperCase() + platform.slice(1)} Post`,
+      author: data.author || platform[0].toUpperCase() + platform.slice(1),
+      thumbnail: data.thumbnail || photos[0].url,
+      duration: null,
+      previewUrl: null,
+      formats: { video: [], audio: [] },
+      photos,
+      subtitles: [],
+      capabilities: { canTrim: false, canSelectQuality: false, hasSubtitles: false },
+    };
+  }
+
+  return null;
+}
+
 async function extractFacebook(rawUrl) {
   const [navRes, botRes] = await Promise.allSettled([
     fetch(rawUrl, {
@@ -998,6 +1106,9 @@ async function extractFacebook(rawUrl) {
   }
 
   if (ogImg) {
+    const cliptoFb = await fetchCliptoSocialFallback(rawUrl, 'facebook');
+    if (cliptoFb) return cliptoFb;
+
     return {
       status: 'success',
       platform: 'facebook',
@@ -1013,6 +1124,9 @@ async function extractFacebook(rawUrl) {
       capabilities: { canTrim: false, canSelectQuality: false, hasSubtitles: false },
     };
   }
+
+  const cliptoFb = await fetchCliptoSocialFallback(rawUrl, 'facebook');
+  if (cliptoFb) return cliptoFb;
 
   throw new Error('Facebook blocked unauthenticated cloud extraction for this link.');
 }
@@ -1307,6 +1421,9 @@ async function extractInstagram(rawUrl) {
       capabilities: { canTrim: false, canSelectQuality: false, hasSubtitles: false },
     };
   }
+
+  const cliptoIg = await fetchCliptoSocialFallback(`https://www.instagram.com/${kind}/${shortcode}/`, 'instagram');
+  if (cliptoIg) return cliptoIg;
 
   if (allImgs.length > 0) {
     const photoList = (vxImgs.length > 1 ? vxImgs : ddImgs.length > 1 ? ddImgs : [thumbnail]).map((imgUrl, idx) => ({

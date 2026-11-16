@@ -10,7 +10,7 @@ import { dragDrop } from './dragdrop.js';
 import { healthMonitor } from './health.js';
 import { clipboardDetector, initClipboardDetector } from './clipboard.js';
 import { shareTargetHandler, applyShareTarget } from './share-target.js';
-import { muxVideoAndAudio } from './muxer.js';
+import { muxVideoAndAudio, preloadFFmpeg } from './muxer.js';
 
 export class DownMeApp {
   constructor() {
@@ -138,23 +138,6 @@ export class DownMeApp {
     // Primary Download CTA
     if (this.downloadPrimaryBtn) {
       this.downloadPrimaryBtn.addEventListener('click', () => this._onDownloadClick());
-    }
-
-    // Dynamic Island
-    if (this.clipboardDownloadBtn) {
-      this.clipboardDownloadBtn.addEventListener('click', () => {
-        const urlToUse = this.lastDetectedClipboard || clipboardDetector?.currentDetectedUrl;
-        if (urlToUse && this.urlInput) {
-          this.urlInput.value = urlToUse;
-          this._onUrlInputChange();
-          this.hideClipboardBanner();
-          this.startExtraction();
-        }
-      });
-    }
-
-    if (this.clipboardDismissBtn) {
-      this.clipboardDismissBtn.addEventListener('click', () => this.hideClipboardBanner());
     }
 
     // Album ZIP Button
@@ -293,36 +276,9 @@ export class DownMeApp {
   }
 
   async _checkClipboardOnFocus() {
-    // Initialize specialized Dynamic Island clipboard detector
+    // Initialize specialized Dynamic Island clipboard detector (handles focus/visibilitychange)
     if (typeof initClipboardDetector === 'function') {
       initClipboardDetector();
-    }
-
-    window.addEventListener('focus', () => this._inspectClipboard());
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        this._inspectClipboard();
-      }
-    });
-  }
-
-  async _inspectClipboard() {
-    // Only check if clipboard API is supported and input is currently empty
-    if (!navigator.clipboard || !navigator.clipboard.readText) return;
-    if (this.urlInput && this.urlInput.value.trim().length > 0) return;
-
-    try {
-      const text = await navigator.clipboard.readText();
-      const detected = this._extractFirstUrl(text);
-      if (!detected) return;
-
-      const isSupported = /(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|pinterest\.com|pin\.it)/i.test(detected);
-      if (isSupported && detected !== this.lastDetectedClipboard) {
-        this.lastDetectedClipboard = detected;
-        this.showClipboardBanner(detected);
-      }
-    } catch {
-      // Permission denied or blocked by browser policy
     }
   }
 
@@ -414,6 +370,10 @@ export class DownMeApp {
 
     // 1. Render in-app preview with fallback stream URLs for trim preview
     previewer.renderPreview(data, fallbackVideoUrl, fallbackAudioUrl);
+
+    if (data.formats?.video?.some(v => v.muxed === false)) {
+      preloadFFmpeg();
+    }
 
     // 2. Setup dynamic format tabs based on what this link actually has
     const hasVideo = Boolean(data.formats?.video?.length);
@@ -736,10 +696,9 @@ export class DownMeApp {
         onProgress: (msg) => this._setStatus(msg, 'loading'),
       })
         .then(() => {
-          this._setStatus('HD Video + Audio download ready!', 'success');
+          this._showDownloadStartedFeedback('HD Video + Audio download started!');
         })
-        .catch((err) => {
-          this._setStatus(`Merge failed (${err.message}); downloading video stream directly...`, 'error');
+        .catch(() => {
           api.triggerDownload({
             url: originalUrl,
             formatId,
@@ -751,6 +710,7 @@ export class DownMeApp {
             subtitleExt,
             itemIndex,
           });
+          this._showDownloadStartedFeedback('Video download started!');
         })
         .finally(() => {
           if (this.downloadPrimaryBtn) this.downloadPrimaryBtn.disabled = false;
@@ -758,7 +718,13 @@ export class DownMeApp {
       return;
     }
 
-    this._setStatus('', '');
+    const typeLabels = {
+      audio: 'Audio download started!',
+      thumbnail: 'Thumbnail download started!',
+      photo: 'Image download started!',
+      subtitles: 'Subtitles download started!',
+      video: 'Video download started!',
+    };
     api.triggerDownload({
       url: originalUrl,
       formatId: formatId,
@@ -770,6 +736,20 @@ export class DownMeApp {
       subtitleExt: subtitleExt,
       itemIndex: itemIndex
     });
+    this._showDownloadStartedFeedback(typeLabels[mediaType] || 'Download started!');
+  }
+
+  _showDownloadStartedFeedback(message = 'Download started!') {
+    this._setStatus(message, 'success');
+    if (this.downloadPrimaryBtn) {
+      this.downloadPrimaryBtn.textContent = 'Download Started ✓';
+      clearTimeout(this._downloadBtnResetTimer);
+      this._downloadBtnResetTimer = setTimeout(() => {
+        if (this.downloadPrimaryBtn) {
+          this.downloadPrimaryBtn.textContent = 'Download';
+        }
+      }, 2500);
+    }
   }
 
   _setStatus(msg, type = '') {
@@ -873,10 +853,18 @@ export class DownMeApp {
 
     const items = this._loadRecentHistory();
     this.recentHistoryPills.innerHTML = '';
+    this.recentHistorySection.classList.remove('hidden');
+
     if (items.length === 0) {
-      this.recentHistorySection.classList.add('hidden');
+      if (this.recentClearBtn) this.recentClearBtn.classList.add('hidden');
+      const emptyEl = document.createElement('span');
+      emptyEl.className = 'recent-empty-text';
+      emptyEl.textContent = 'No recent links yet';
+      this.recentHistoryPills.appendChild(emptyEl);
       return;
     }
+
+    if (this.recentClearBtn) this.recentClearBtn.classList.remove('hidden');
 
     items.forEach((item) => {
       const btn = document.createElement('button');

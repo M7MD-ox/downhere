@@ -11,7 +11,7 @@ let ffmpegInstance = null;
 let ffmpegLoadPromise = null;
 
 async function toBlobUrl(url, mimeType, transform = null) {
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`Failed to load muxer asset (${res.status})`);
   if (transform) {
     const text = transform(await res.text());
@@ -19,6 +19,16 @@ async function toBlobUrl(url, mimeType, transform = null) {
   }
   const buf = await res.arrayBuffer();
   return URL.createObjectURL(new Blob([buf], { type: mimeType }));
+}
+
+export function isFFmpegReady() {
+  return Boolean(ffmpegInstance);
+}
+
+export function preloadFFmpeg() {
+  if (!ffmpegInstance && !ffmpegLoadPromise) {
+    getFFmpeg().catch(() => {});
+  }
 }
 
 async function getFFmpeg() {
@@ -71,8 +81,8 @@ export async function muxVideoAndAudio({
 }) {
   onProgress('Downloading video & audio streams...');
   const [videoRes, audioRes, ffmpeg] = await Promise.all([
-    fetch(videoUrl),
-    fetch(audioUrl),
+    fetch(videoUrl, { signal: AbortSignal.timeout(15000) }),
+    fetch(audioUrl, { signal: AbortSignal.timeout(15000) }),
     getFFmpeg(),
   ]);
 

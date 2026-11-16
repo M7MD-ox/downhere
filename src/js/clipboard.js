@@ -228,11 +228,14 @@ export class ClipboardDetector {
    * @param {string} platform - Platform identifier.
    */
   showBanner(url, platform) {
+    if (!url) return;
     if (!this.banner) {
       this.banner = document.getElementById('clipboard-banner');
       this.urlEl = document.getElementById('clipboard-url');
       this.iconEl = document.getElementById('clipboard-icon');
     }
+    this.currentDetectedUrl = url;
+    this.lastProcessedUrl = url;
     if (!this.banner) return;
 
     if (this.urlEl) {
