@@ -10,8 +10,28 @@ const CORE_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
 let ffmpegInstance = null;
 let ffmpegLoadPromise = null;
 
+const FFMPEG_CACHE_NAME = 'downhere-ffmpeg-v1';
+
+async function fetchWithCache(url) {
+  if (typeof caches !== 'undefined') {
+    try {
+      const cache = await caches.open(FFMPEG_CACHE_NAME);
+      const cached = await cache.match(url);
+      if (cached) return cached;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (res.ok) {
+        await cache.put(url, res.clone());
+      }
+      return res;
+    } catch {
+      // Fall back to direct fetch if Cache API is restricted
+    }
+  }
+  return fetch(url, { signal: AbortSignal.timeout(15000) });
+}
+
 async function toBlobUrl(url, mimeType, transform = null) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  const res = await fetchWithCache(url);
   if (!res.ok) throw new Error(`Failed to load muxer asset (${res.status})`);
   if (transform) {
     const text = transform(await res.text());

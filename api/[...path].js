@@ -1,188 +1,34 @@
 import { Readable } from 'node:stream';
-import dns from 'node:dns/promises';
-import net from 'node:net';
+import {
+  MAX_JSON_BYTES,
+  MAX_ZIP_ITEMS,
+  MAX_ZIP_ITEM_BYTES,
+  MAX_ZIP_TOTAL_BYTES,
+  setCors,
+  sanitizeFilename,
+  setDownloadHeaders,
+  validatePublicUrl,
+  safeFetch,
+  checkRateLimit,
+} from './_lib/security.js';
+import {
+  VR_UA,
+  ANDROID_UA,
+  BROWSER_UA,
+  timedTextXmlToSrt,
+  extractMetaTags,
+  extractMetaTag,
+  unescapeJsonString,
+} from './_lib/utils.js';
+import { buildStoreZip } from './_lib/zip.js';
 
 export const config = {
   maxDuration: 60,
 };
 
-const VR_UA =
-  'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
-const ANDROID_UA = 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip';
-const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-const MAX_JSON_BYTES = 64 * 1024;
-const MAX_ZIP_ITEMS = 25;
-const MAX_ZIP_ITEM_BYTES = 15 * 1024 * 1024;
-const MAX_ZIP_TOTAL_BYTES = 45 * 1024 * 1024;
-
 // Warm-instance cache to speed up immediate /api/download after /api/extract
 const extractCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000;
-
-function isAllowedOrigin(origin) {
-  if (!origin) return false;
-  try {
-    const u = new URL(origin);
-    const host = u.hostname.toLowerCase();
-    if (
-      host === 'downhere.vercel.app' ||
-      host === 'downme.vercel.app' ||
-      /^downme-[a-z0-9-]+\.vercel\.app$/.test(host) ||
-      host === 'localhost' ||
-      host === '127.0.0.1'
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-function setCors(req, res) {
-  const origin = req?.headers?.origin;
-  if (origin && isAllowedOrigin(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Range');
-}
-
-function sanitizeFilename(name, fallback = 'downhere_Media') {
-  const cleaned = String(name || fallback)
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 90);
-  return cleaned || fallback;
-}
-
-function asciiFilename(name) {
-  return name.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, "'") || 'downhere_Media';
-}
-
-function setDownloadHeaders(res, filename, contentType, inline = false) {
-  const safeAscii = asciiFilename(filename);
-  const encoded = encodeURIComponent(filename);
-  const disp = inline ? 'inline' : 'attachment';
-  if (contentType) res.setHeader('Content-Type', contentType);
-  res.setHeader(
-    'Content-Disposition',
-    `${disp}; filename="${safeAscii}"; filename*=UTF-8''${encoded}`
-  );
-}
-
-function isPrivateIp(ip) {
-  const clean = String(ip || '').replace(/^\[|\]$/g, '').toLowerCase();
-  if (!clean) return true;
-  if (clean.startsWith('::ffff:')) {
-    const mapped = clean.slice(7);
-    if (mapped.includes(':')) {
-      const parts = mapped.split(':');
-      if (parts.length === 2) {
-        const hi = parseInt(parts[0], 16);
-        const lo = parseInt(parts[1], 16);
-        if (!Number.isNaN(hi) && !Number.isNaN(lo)) {
-          return isPrivateIp(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
-        }
-      }
-    }
-    return isPrivateIp(mapped);
-  }
-  if (net.isIPv4(clean)) {
-    const [a, b] = clean.split('.').map(Number);
-    if (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      a >= 224
-    ) {
-      return true;
-    }
-    return false;
-  }
-  if (net.isIPv6(clean)) {
-    if (clean === '::' || clean === '::1') return true;
-    if (clean.startsWith('fc') || clean.startsWith('fd')) return true; // ULA fc00::/7
-    if (/^fe[89ab]/.test(clean)) return true; // Link-local fe80::/10
-    return false;
-  }
-  return false;
-}
-
-function validatePublicUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== 'string') {
-    throw new Error('Missing URL parameter.');
-  }
-  const trimmed = rawUrl.trim();
-  let parsed;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    throw new Error('Invalid URL format. Please provide an http:// or https:// URL.');
-  }
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new Error('Only http:// and https:// URLs are supported.');
-  }
-  const host = (parsed.hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
-  if (!host || (!net.isIP(host) && !host.includes('.'))) {
-    throw new Error('URL must contain a valid public domain.');
-  }
-  const blockedHosts = new Set([
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    '169.254.169.254',
-    '::1',
-    'metadata.google.internal',
-  ]);
-  if (blockedHosts.has(host) || host.endsWith('.local') || host.endsWith('.internal')) {
-    throw new Error('Local or private network addresses are not permitted.');
-  }
-  if (net.isIP(host) && isPrivateIp(host)) {
-    throw new Error('Private IP addresses are not permitted.');
-  }
-  return trimmed;
-}
-
-async function assertSafeRemoteUrl(rawUrl) {
-  const valid = validatePublicUrl(rawUrl);
-  const host = new URL(valid).hostname.replace(/^\[|\]$/g, '');
-  if (net.isIP(host)) {
-    if (isPrivateIp(host)) throw new Error('Private IP addresses are not permitted.');
-    return valid;
-  }
-  const records = await dns.lookup(host, { all: true }).catch(() => []);
-  for (const rec of records) {
-    if (isPrivateIp(rec.address)) {
-      throw new Error('URL resolved to a private or internal IP address.');
-    }
-  }
-  return valid;
-}
-
-async function safeFetch(rawUrl, init = {}, maxRedirects = 5) {
-  let currentUrl = await assertSafeRemoteUrl(rawUrl);
-  for (let i = 0; i <= maxRedirects; i++) {
-    const res = await fetch(currentUrl, { ...init, redirect: 'manual' });
-    if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get('location');
-      if (!loc) return res;
-      currentUrl = await assertSafeRemoteUrl(new URL(loc, currentUrl).toString());
-      continue;
-    }
-    return res;
-  }
-  throw new Error('Too many redirects.');
-}
 
 function parseYouTubeId(rawUrl) {
   try {
@@ -1009,34 +855,6 @@ async function extractGeneric(rawUrl) {
   throw new Error('Could not find direct video, audio, or image media on that URL.');
 }
 
-function extractMetaTags(html, property) {
-  if (!html) return [];
-  const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const results = [];
-  const re1 = new RegExp(`<meta[^>]+property=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'gi');
-  const re2 = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${escaped}["']`, 'gi');
-  let m;
-  while ((m = re1.exec(html)) !== null) results.push(decodeHtmlEntities(m[1]));
-  while ((m = re2.exec(html)) !== null) {
-    const val = decodeHtmlEntities(m[1]);
-    if (!results.includes(val)) results.push(val);
-  }
-  return results;
-}
-
-function extractMetaTag(html, property) {
-  return extractMetaTags(html, property)[0] || '';
-}
-
-function unescapeJsonString(raw) {
-  if (!raw) return '';
-  try {
-    return JSON.parse(`"${raw.replace(/"/g, '\\"')}"`);
-  } catch {
-    return raw.replace(/\\\//g, '/');
-  }
-}
-
 async function fetchCliptoSocialFallback(rawUrl, platform) {
   const res = await fetch('https://www.clipto.com/api/youtube', {
     method: 'POST',
@@ -1604,119 +1422,6 @@ function stripInternal(data) {
   return clean;
 }
 
-function formatSrtTime(ms) {
-  const total = Math.max(0, Math.round(ms));
-  const hours = String(Math.floor(total / 3600000)).padStart(2, '0');
-  const mins = String(Math.floor((total % 3600000) / 60000)).padStart(2, '0');
-  const secs = String(Math.floor((total % 60000) / 1000)).padStart(2, '0');
-  const millis = String(total % 1000).padStart(3, '0');
-  return `${hours}:${mins}:${secs},${millis}`;
-}
-
-function decodeHtmlEntities(str) {
-  return str
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-}
-
-function timedTextXmlToSrt(xml) {
-  const blocks = [];
-  const regex = /<p\b([^>]*)>([\s\S]*?)<\/p>/gi;
-  let idx = 1;
-  let match;
-  while ((match = regex.exec(xml)) !== null) {
-    const attrs = match[1];
-    const startMs = Number(attrs.match(/\bt="(\d+)"/)?.[1] || 0);
-    const durMs = Number(attrs.match(/\bd="(\d+)"/)?.[1] || 2000);
-    const rawText = decodeHtmlEntities(match[2].replace(/<[^>]+>/g, '').trim());
-    if (!rawText) continue;
-    blocks.push(`${idx++}\n${formatSrtTime(startMs)} --> ${formatSrtTime(startMs + durMs)}\n${rawText}`);
-  }
-  return blocks.join('\n\n') + '\n';
-}
-
-function buildStoreZip(entries) {
-  const localParts = [];
-  const centralParts = [];
-  let offset = 0;
-
-  // Compute CRC32 table once
-  const crcTable = new Uint32Array(256);
-  for (let i = 0; i < 256; i++) {
-    let c = i;
-    for (let j = 0; j < 8; j++) {
-      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    }
-    crcTable[i] = c >>> 0;
-  }
-  const crc32 = (buf) => {
-    let crc = 0xffffffff;
-    for (let i = 0; i < buf.length; i++) {
-      crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
-    }
-    return (crc ^ 0xffffffff) >>> 0;
-  };
-
-  for (const { name, data } of entries) {
-    const nameBuf = Buffer.from(name, 'utf8');
-    const crc = crc32(data);
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0);
-    localHeader.writeUInt16LE(20, 4);
-    localHeader.writeUInt16LE(0x0800, 6);
-    localHeader.writeUInt16LE(0, 8); // STORE
-    localHeader.writeUInt16LE(0, 10);
-    localHeader.writeUInt16LE(0, 12);
-    localHeader.writeUInt32LE(crc, 14);
-    localHeader.writeUInt32LE(data.length, 18);
-    localHeader.writeUInt32LE(data.length, 22);
-    localHeader.writeUInt16LE(nameBuf.length, 26);
-    localHeader.writeUInt16LE(0, 28);
-
-    localParts.push(localHeader, nameBuf, data);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0);
-    centralHeader.writeUInt16LE(20, 4);
-    centralHeader.writeUInt16LE(20, 6);
-    centralHeader.writeUInt16LE(0x0800, 8);
-    centralHeader.writeUInt16LE(0, 10);
-    centralHeader.writeUInt16LE(0, 12);
-    centralHeader.writeUInt16LE(0, 14);
-    centralHeader.writeUInt32LE(crc, 16);
-    centralHeader.writeUInt32LE(data.length, 20);
-    centralHeader.writeUInt32LE(data.length, 24);
-    centralHeader.writeUInt16LE(nameBuf.length, 28);
-    centralHeader.writeUInt16LE(0, 30);
-    centralHeader.writeUInt16LE(0, 32);
-    centralHeader.writeUInt16LE(0, 34);
-    centralHeader.writeUInt16LE(0, 36);
-    centralHeader.writeUInt32LE(0, 38);
-    centralHeader.writeUInt32LE(offset, 42);
-
-    centralParts.push(centralHeader, nameBuf);
-    offset += 30 + nameBuf.length + data.length;
-  }
-
-  const centralDir = Buffer.concat(centralParts);
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0);
-  eocd.writeUInt16LE(0, 4);
-  eocd.writeUInt16LE(0, 6);
-  eocd.writeUInt16LE(entries.length, 8);
-  eocd.writeUInt16LE(entries.length, 10);
-  eocd.writeUInt32LE(centralDir.length, 12);
-  eocd.writeUInt32LE(offset, 16);
-  eocd.writeUInt16LE(0, 20);
-
-  return Buffer.concat([...localParts, centralDir, eocd]);
-}
-
 async function handleDownload(req, res, searchParams) {
   const rawUrl = searchParams.get('url');
   const mediaType = (searchParams.get('media_type') || searchParams.get('mediaType') || 'video').toLowerCase();
@@ -2023,6 +1728,10 @@ export default async function handler(req, res) {
         service: 'downhere',
         mode: 'vercel-cloud',
       });
+    }
+
+    if (!checkRateLimit(req, res)) {
+      return;
     }
 
     if (path === '/api/extract') {

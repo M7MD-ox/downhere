@@ -9,7 +9,7 @@
  * - Network-Only for /api/* requests so media extraction and status are always live
  */
 
-const CACHE_NAME = 'downhere-v8';
+const CACHE_NAME = 'downhere-v9';
 
 // Critical precache assets required for instant offline booting
 const PRECACHE_ASSETS = [
@@ -73,7 +73,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
-          if (name !== CACHE_NAME) {
+          if (name !== CACHE_NAME && name !== 'downhere-ffmpeg-v1') {
             console.log(`[ServiceWorker] Deleting obsolete cache: ${name}`);
             return caches.delete(name);
           }
