@@ -494,13 +494,12 @@ async function extractTikTok(rawUrl) {
       },
       signal: AbortSignal.timeout(12000),
     }
-  );
-  if (!apiRes.ok) {
-    throw new Error(`TikTok extractor returned HTTP ${apiRes.status}.`);
-  }
-  const json = await apiRes.json();
+  ).catch(() => null);
+  const json = apiRes?.ok ? await apiRes.json().catch(() => null) : null;
   if (json?.code !== 0 || !json?.data) {
-    throw new Error(json?.msg || 'Could not extract this TikTok link.');
+    const cliptoTt = await fetchCliptoSocialFallback(rawUrl, 'tiktok');
+    if (cliptoTt) return cliptoTt;
+    throw new Error(json?.msg || (apiRes ? `TikTok extractor returned HTTP ${apiRes.status}.` : 'Could not extract this TikTok link.'));
   }
   const d = json.data;
   const title = (d.title || '').trim() || `TikTok by ${d.author?.nickname || d.author?.unique_id || 'Creator'}`;
@@ -748,7 +747,8 @@ async function extractGeneric(rawUrl) {
 
   const ct = (res.headers.get('content-type') || '').toLowerCase();
   const host = new URL(rawUrl).hostname;
-  const baseName = decodeURIComponent(new URL(rawUrl).pathname.split('/').pop() || host);
+  const rawBaseName = decodeURIComponent(new URL(rawUrl).pathname.split('/').pop() || host);
+  const baseName = rawBaseName.replace(/\.(?:mp4|webm|mp3|m4a|ogg|wav|jpg|jpeg|png|gif|webp)$/i, '') || host;
 
   if (ct.startsWith('image/')) {
     const ext = ct.split('/')[1]?.split(';')[0]?.replace('jpeg', 'jpg') || 'jpg';
