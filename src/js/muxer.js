@@ -91,6 +91,59 @@ export function sanitizeDownloadFilename(title, ext = 'mp4') {
   return `${clean || 'downhere_video'}.${ext}`;
 }
 
+const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunks avoid Vercel 504 & YouTube 1x throttle
+
+async function fetchStreamChunked(url) {
+  const firstRes = await fetch(url, {
+    headers: { Range: `bytes=0-${CHUNK_SIZE - 1}` },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!firstRes.ok && firstRes.status !== 206) {
+    throw new Error(`Stream failed (HTTP ${firstRes.status})`);
+  }
+
+  const firstBuf = new Uint8Array(await firstRes.arrayBuffer());
+  const contentRange = firstRes.headers.get('content-range');
+  const totalMatch = contentRange?.match(/\/(\d+)$/);
+  if (firstRes.status !== 206 || !totalMatch) {
+    return firstBuf;
+  }
+
+  const totalSize = Number(totalMatch[1]);
+  if (firstBuf.length >= totalSize) {
+    return firstBuf;
+  }
+
+  const out = new Uint8Array(totalSize);
+  out.set(firstBuf, 0);
+
+  const ranges = [];
+  for (let start = firstBuf.length; start < totalSize; start += CHUNK_SIZE) {
+    ranges.push([start, Math.min(start + CHUNK_SIZE - 1, totalSize - 1)]);
+  }
+
+  // Fetch up to 3 chunks concurrently
+  let cursor = 0;
+  async function worker() {
+    while (cursor < ranges.length) {
+      const idx = cursor++;
+      const [start, end] = ranges[idx];
+      const r = await fetch(url, {
+        headers: { Range: `bytes=${start}-${end}` },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!r.ok && r.status !== 206) {
+        throw new Error(`Chunk ${idx} failed (HTTP ${r.status})`);
+      }
+      const chunk = new Uint8Array(await r.arrayBuffer());
+      out.set(chunk, start);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(3, ranges.length) }, () => worker()));
+  return out;
+}
+
 export async function muxVideoAndAudio({
   videoUrl,
   audioUrl,
@@ -100,27 +153,20 @@ export async function muxVideoAndAudio({
   onProgress = () => {},
 }) {
   onProgress('Downloading video & audio streams...');
-  const [videoRes, audioRes, ffmpeg] = await Promise.all([
-    fetch(videoUrl, { signal: AbortSignal.timeout(15000) }),
-    fetch(audioUrl, { signal: AbortSignal.timeout(15000) }),
-    getFFmpeg(),
+  const ffmpegPromise = getFFmpeg();
+  const [videoBytes, audioBytes] = await Promise.all([
+    fetchStreamChunked(videoUrl),
+    fetchStreamChunked(audioUrl),
   ]);
-
-  if (!videoRes.ok) throw new Error(`Video stream failed (HTTP ${videoRes.status})`);
-  if (!audioRes.ok) throw new Error(`Audio stream failed (HTTP ${audioRes.status})`);
-
-  const [videoBuf, audioBuf] = await Promise.all([
-    videoRes.arrayBuffer(),
-    audioRes.arrayBuffer(),
-  ]);
+  const ffmpeg = await ffmpegPromise;
 
   onProgress('Merging video + audio...');
   const inVideo = 'in_video.mp4';
   const inAudio = 'in_audio.m4a';
   const outFile = 'out_merged.mp4';
 
-  await ffmpeg.writeFile(inVideo, new Uint8Array(videoBuf));
-  await ffmpeg.writeFile(inAudio, new Uint8Array(audioBuf));
+  await ffmpeg.writeFile(inVideo, videoBytes);
+  await ffmpeg.writeFile(inAudio, audioBytes);
 
   const args = [];
   if (trimStart !== null && trimStart !== undefined && trimStart !== '') {

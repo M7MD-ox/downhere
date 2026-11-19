@@ -9,7 +9,7 @@
  * - Network-Only for /api/* requests so media extraction and status are always live
  */
 
-const CACHE_NAME = 'downhere-v9';
+const CACHE_NAME = 'downhere-v10';
 
 // Critical precache assets required for instant offline booting
 const PRECACHE_ASSETS = [

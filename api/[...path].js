@@ -78,16 +78,32 @@ function detectPlatform(rawUrl) {
   return 'universal';
 }
 
-async function fetchInnertubePlayer(videoId, clientConfig, userAgent) {
+async function fetchYouTubeVisitorData(videoId) {
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { 'User-Agent': BROWSER_UA, 'Accept-Language': 'en-US,en;q=0.9' },
+      signal: AbortSignal.timeout(4500),
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    return html.match(/"visitorData":"([^"]+)"/)?.[1] || '';
+  } catch {
+    return '';
+  }
+}
+
+async function fetchInnertubePlayer(videoId, clientConfig, userAgent, visitorData = '') {
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': userAgent,
+  };
+  if (visitorData) headers['X-Goog-Visitor-Id'] = visitorData;
   const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': userAgent,
-    },
+    headers,
     body: JSON.stringify({
       videoId,
-      context: { client: clientConfig },
+      context: { client: visitorData ? { ...clientConfig, visitorData } : clientConfig },
     }),
     signal: AbortSignal.timeout(10000),
   });
@@ -101,6 +117,8 @@ async function extractYouTube(rawUrl) {
     throw new Error('Could not extract a valid YouTube video ID from this URL.');
   }
 
+  const visitorData = await fetchYouTubeVisitorData(videoId);
+
   const [vrData, androidData] = await Promise.all([
     fetchInnertubePlayer(
       videoId,
@@ -113,7 +131,8 @@ async function extractYouTube(rawUrl) {
         osName: 'Android',
         osVersion: '12L',
       },
-      VR_UA
+      VR_UA,
+      visitorData
     ).catch(() => null),
     fetchInnertubePlayer(
       videoId,
@@ -124,7 +143,8 @@ async function extractYouTube(rawUrl) {
         osName: 'Android',
         osVersion: '11',
       },
-      ANDROID_UA
+      ANDROID_UA,
+      visitorData
     ).catch(() => null),
   ]);
 
@@ -1561,12 +1581,25 @@ async function handleDownload(req, res, searchParams) {
   const headers = { 'User-Agent': target.ua || BROWSER_UA };
   if (req.headers.range) headers.Range = req.headers.range;
 
-  let up = await safeFetch(target.url, { headers, signal: AbortSignal.timeout(25000) });
+  const ac = new AbortController();
+  const connectTimer = setTimeout(() => ac.abort(), 15000);
+  let up;
+  try {
+    up = await safeFetch(target.url, { headers, signal: ac.signal });
+  } finally {
+    clearTimeout(connectTimer);
+  }
   if (!up.ok && up.status !== 206 && info._internal?.progressiveFallback?.url) {
     const fb = info._internal.progressiveFallback;
     const fbHeaders = { 'User-Agent': fb.ua || ANDROID_UA };
     if (req.headers.range) fbHeaders.Range = req.headers.range;
-    up = await safeFetch(fb.url, { headers: fbHeaders, signal: AbortSignal.timeout(25000) });
+    const acFb = new AbortController();
+    const fbTimer = setTimeout(() => acFb.abort(), 15000);
+    try {
+      up = await safeFetch(fb.url, { headers: fbHeaders, signal: acFb.signal });
+    } finally {
+      clearTimeout(fbTimer);
+    }
     target = { ...target, ext: fb.ext || 'mp4' };
   }
 
