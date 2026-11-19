@@ -901,6 +901,12 @@ window.addEventListener('DOMContentLoaded', () => {
   const app = new DownMeApp();
   window.downmeApp = app;
   app.init();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    });
+  }
 });
 
 // Global module registry for inspection and testing

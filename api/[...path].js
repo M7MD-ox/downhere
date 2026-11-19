@@ -1,4 +1,6 @@
 import { Readable } from 'node:stream';
+import dns from 'node:dns/promises';
+import net from 'node:net';
 
 export const config = {
   maxDuration: 60,
@@ -10,14 +12,43 @@ const ANDROID_UA = 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) g
 const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+const MAX_JSON_BYTES = 64 * 1024;
+const MAX_ZIP_ITEMS = 25;
+const MAX_ZIP_ITEM_BYTES = 15 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES = 45 * 1024 * 1024;
+
 // Warm-instance cache to speed up immediate /api/download after /api/extract
 const extractCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const u = new URL(origin);
+    const host = u.hostname.toLowerCase();
+    if (
+      host === 'downhere.vercel.app' ||
+      host === 'downme.vercel.app' ||
+      /^downme-[a-z0-9-]+\.vercel\.app$/.test(host) ||
+      host === 'localhost' ||
+      host === '127.0.0.1'
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function setCors(req, res) {
+  const origin = req?.headers?.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Range');
 }
 
@@ -45,6 +76,48 @@ function setDownloadHeaders(res, filename, contentType, inline = false) {
   );
 }
 
+function isPrivateIp(ip) {
+  const clean = String(ip || '').replace(/^\[|\]$/g, '').toLowerCase();
+  if (!clean) return true;
+  if (clean.startsWith('::ffff:')) {
+    const mapped = clean.slice(7);
+    if (mapped.includes(':')) {
+      const parts = mapped.split(':');
+      if (parts.length === 2) {
+        const hi = parseInt(parts[0], 16);
+        const lo = parseInt(parts[1], 16);
+        if (!Number.isNaN(hi) && !Number.isNaN(lo)) {
+          return isPrivateIp(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
+        }
+      }
+    }
+    return isPrivateIp(mapped);
+  }
+  if (net.isIPv4(clean)) {
+    const [a, b] = clean.split('.').map(Number);
+    if (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      a >= 224
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (net.isIPv6(clean)) {
+    if (clean === '::' || clean === '::1') return true;
+    if (clean.startsWith('fc') || clean.startsWith('fd')) return true; // ULA fc00::/7
+    if (/^fe[89ab]/.test(clean)) return true; // Link-local fe80::/10
+    return false;
+  }
+  return false;
+}
+
 function validatePublicUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') {
     throw new Error('Missing URL parameter.');
@@ -59,8 +132,8 @@ function validatePublicUrl(rawUrl) {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     throw new Error('Only http:// and https:// URLs are supported.');
   }
-  const host = (parsed.hostname || '').toLowerCase();
-  if (!host || !host.includes('.')) {
+  const host = (parsed.hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
+  if (!host || (!net.isIP(host) && !host.includes('.'))) {
     throw new Error('URL must contain a valid public domain.');
   }
   const blockedHosts = new Set([
@@ -71,25 +144,44 @@ function validatePublicUrl(rawUrl) {
     '::1',
     'metadata.google.internal',
   ]);
-  if (blockedHosts.has(host)) {
+  if (blockedHosts.has(host) || host.endsWith('.local') || host.endsWith('.internal')) {
     throw new Error('Local or private network addresses are not permitted.');
   }
-  // Reject dotted-quad private/loopback IPv4 literals
-  const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4Match) {
-    const [, a, b] = ipv4Match.map(Number);
-    if (
-      a === 10 ||
-      a === 127 ||
-      a === 0 ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168)
-    ) {
-      throw new Error('Private IP addresses are not permitted.');
-    }
+  if (net.isIP(host) && isPrivateIp(host)) {
+    throw new Error('Private IP addresses are not permitted.');
   }
   return trimmed;
+}
+
+async function assertSafeRemoteUrl(rawUrl) {
+  const valid = validatePublicUrl(rawUrl);
+  const host = new URL(valid).hostname.replace(/^\[|\]$/g, '');
+  if (net.isIP(host)) {
+    if (isPrivateIp(host)) throw new Error('Private IP addresses are not permitted.');
+    return valid;
+  }
+  const records = await dns.lookup(host, { all: true }).catch(() => []);
+  for (const rec of records) {
+    if (isPrivateIp(rec.address)) {
+      throw new Error('URL resolved to a private or internal IP address.');
+    }
+  }
+  return valid;
+}
+
+async function safeFetch(rawUrl, init = {}, maxRedirects = 5) {
+  let currentUrl = await assertSafeRemoteUrl(rawUrl);
+  for (let i = 0; i <= maxRedirects; i++) {
+    const res = await fetch(currentUrl, { ...init, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location');
+      if (!loc) return res;
+      currentUrl = await assertSafeRemoteUrl(new URL(loc, currentUrl).toString());
+      continue;
+    }
+    return res;
+  }
+  throw new Error('Too many redirects.');
 }
 
 function parseYouTubeId(rawUrl) {
@@ -794,18 +886,16 @@ async function extractPinterest(rawUrl) {
 }
 
 async function extractGeneric(rawUrl) {
-  let res = await fetch(rawUrl, {
+  let res = await safeFetch(rawUrl, {
     method: 'HEAD',
     headers: { 'User-Agent': BROWSER_UA },
-    redirect: 'follow',
     signal: AbortSignal.timeout(10000),
   }).catch(() => null);
 
   if (!res || !res.ok) {
-    res = await fetch(rawUrl, {
+    res = await safeFetch(rawUrl, {
       method: 'GET',
       headers: { 'User-Agent': BROWSER_UA },
-      redirect: 'follow',
       signal: AbortSignal.timeout(10000),
     });
   }
@@ -1766,12 +1856,12 @@ async function handleDownload(req, res, searchParams) {
   const headers = { 'User-Agent': target.ua || BROWSER_UA };
   if (req.headers.range) headers.Range = req.headers.range;
 
-  let up = await fetch(target.url, { headers, signal: AbortSignal.timeout(25000) });
+  let up = await safeFetch(target.url, { headers, signal: AbortSignal.timeout(25000) });
   if (!up.ok && up.status !== 206 && info._internal?.progressiveFallback?.url) {
     const fb = info._internal.progressiveFallback;
     const fbHeaders = { 'User-Agent': fb.ua || ANDROID_UA };
     if (req.headers.range) fbHeaders.Range = req.headers.range;
-    up = await fetch(fb.url, { headers: fbHeaders, signal: AbortSignal.timeout(25000) });
+    up = await safeFetch(fb.url, { headers: fbHeaders, signal: AbortSignal.timeout(25000) });
     target = { ...target, ext: fb.ext || 'mp4' };
   }
 
@@ -1795,6 +1885,9 @@ async function handleZipDownload(req, res, searchParams, bodyObj) {
   let albumTitle = 'downhere_Album';
 
   if (req.method === 'POST' && Array.isArray(bodyObj?.items) && bodyObj.items.length > 0) {
+    if (bodyObj.items.length > MAX_ZIP_ITEMS) {
+      return res.status(422).json({ detail: `Maximum ${MAX_ZIP_ITEMS} items allowed per ZIP download.` });
+    }
     albumTitle = bodyObj.albumTitle || albumTitle;
     photos = bodyObj.items.map((item, idx) => ({
       url: validatePublicUrl(item.url),
@@ -1805,7 +1898,7 @@ async function handleZipDownload(req, res, searchParams, bodyObj) {
     const rawUrl = searchParams.get('url');
     const info = await performExtraction(rawUrl);
     albumTitle = info.title || albumTitle;
-    photos = info.items || info.photos || [];
+    photos = (info.items || info.photos || []).slice(0, MAX_ZIP_ITEMS);
   }
 
   if (photos.length === 0) {
@@ -1814,10 +1907,13 @@ async function handleZipDownload(req, res, searchParams, bodyObj) {
 
   const baseName = sanitizeFilename(albumTitle, 'downhere_Album');
   const entries = [];
+  let totalZipBytes = 0;
   for (let i = 0; i < photos.length; i++) {
     const p = photos[i];
-    const r = await fetch(p.url, { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(12000) });
-    if (!r.ok) continue;
+    const r = await safeFetch(p.url, { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(12000) }).catch(() => null);
+    if (!r || !r.ok) continue;
+    const contentLen = Number(r.headers.get('content-length') || 0);
+    if (contentLen > MAX_ZIP_ITEM_BYTES) continue;
     const ct = (r.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase();
     const detectedExt =
       ct === 'image/png' ? 'png' : ct === 'image/gif' ? 'gif' : ct === 'image/webp' ? 'webp' : p.ext || 'jpg';
@@ -1825,6 +1921,8 @@ async function handleZipDownload(req, res, searchParams, bodyObj) {
       ? sanitizeFilename(p.filename.replace(/\.[^.]+$/, ''), `photo_${i + 1}`) + `.${detectedExt}`
       : `${baseName}_${i + 1}.${detectedExt}`;
     const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > MAX_ZIP_ITEM_BYTES || totalZipBytes + buf.length > MAX_ZIP_TOTAL_BYTES) break;
+    totalZipBytes += buf.length;
     entries.push({ name: rawEntryName, data: buf });
   }
   if (entries.length === 0) {
@@ -1846,7 +1944,14 @@ async function parseJsonBody(req) {
     }
   }
   const chunks = [];
-  for await (const c of req) chunks.push(c);
+  let total = 0;
+  for await (const c of req) {
+    total += c.length;
+    if (total > MAX_JSON_BYTES) {
+      throw new Error('Request payload too large.');
+    }
+    chunks.push(c);
+  }
   if (chunks.length === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -1897,7 +2002,7 @@ async function tryForwardToBackend(req, res, url, rawBodyObj) {
 }
 
 export default async function handler(req, res) {
-  setCors(res);
+  setCors(req, res);
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
